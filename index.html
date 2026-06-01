@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI 운동 루틴 코치 · 중간 발표</title>
+<style>
+  :root{
+    --dark:#0B2A3A; --primary:#0A7EA4; --accent:#2EC4B6;
+    --ink:#1E293B; --muted:#64748B; --card:#F1F5F9; --line:#E2E8F0; --white:#fff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:"Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;
+    background:#0a1922; color:var(--ink); overflow:hidden;
+  }
+  /* deck */
+  #deck{position:fixed; inset:0;}
+  .slide{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    padding:4.2vh 5vw 7vh; opacity:0; visibility:hidden;
+    transition:opacity .35s ease; background:var(--white); overflow:auto;
+  }
+  .slide.active{opacity:1; visibility:visible; z-index:2;}
+  .slide.dark{background:var(--dark); color:var(--white);}
+  /* header */
+  .kicker{display:flex; align-items:center; gap:10px; font-size:1.0vw; font-weight:800;
+    letter-spacing:2px; color:var(--primary); text-transform:uppercase;}
+  .kicker .chip{width:18px; height:18px; border-radius:5px; background:var(--accent);}
+  h1.title{font-size:3.0vw; font-weight:800; margin:.5vh 0 1.6vh; line-height:1.15;}
+  .dark h1.title{color:var(--white);}
+  /* layout helpers */
+  .row{display:flex; gap:2vw;}
+  .col{flex:1; min-width:0;}
+  .grow{flex:1;}
+  .center{align-items:center; justify-content:center; text-align:center;}
+  .muted{color:var(--muted);}
+  .accent{color:var(--accent);}
+  .primary{color:var(--primary);}
+  .b{font-weight:700;}
+  /* cards */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:2.2vh 1.6vw;}
+  .card.solid{background:var(--dark); color:var(--white); border:none;}
+  .card.outline{background:var(--white);}
+  .shadow{box-shadow:0 8px 24px rgba(11,42,58,.10);}
+  /* cover */
+  .badge{display:inline-block; background:var(--accent); color:var(--dark);
+    font-weight:800; padding:.7vh 1.2vw; border-radius:10px; font-size:1.1vw;}
+  .cover-title{font-size:5.2vw; font-weight:800; color:var(--white); line-height:1.05;}
+  .tagline{font-size:1.9vw; font-style:italic; color:var(--accent); margin-top:1.2vh;}
+  .blob{position:absolute; border-radius:50%; filter:blur(1px); z-index:0;}
+  /* problem cards */
+  .prob{display:flex; gap:14px; align-items:flex-start; padding:2vh 1.4vw; background:var(--card);
+    border-radius:14px; border-left:6px solid #EF6461;}
+  .prob h3{font-size:1.5vw; margin-bottom:.6vh;}
+  .prob p{font-size:1.05vw; color:var(--muted);}
+  /* step rows */
+  .step{display:flex; align-items:center; gap:1vw; background:var(--white); border:1px solid var(--line);
+    border-radius:14px; padding:1.4vh 1.2vw; margin-bottom:1.1vh;}
+  .num{flex:none; width:2.4vw; height:2.4vw; min-width:34px; min-height:34px; border-radius:50%;
+    background:var(--accent); color:var(--dark); font-weight:800; display:flex; align-items:center;
+    justify-content:center; font-size:1.3vw;}
+  .step .t{font-weight:700; font-size:1.3vw; flex:none; width:14vw;}
+  .step .d{color:var(--muted); font-size:1.05vw;}
+  /* bullet list */
+  ul.clean{list-style:none;}
+  ul.clean li{display:flex; gap:12px; align-items:flex-start; margin:1.1vh 0; font-size:1.2vw;}
+  ul.clean li .dot{flex:none; width:14px; height:14px; border-radius:50%; background:var(--accent); margin-top:.6vh;}
+  /* bar chart */
+  .chart{display:flex; align-items:flex-end; gap:2.5vw; height:30vh; padding:0 1vw; border-bottom:2px solid var(--line);}
+  .bar-wrap{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .bar-val{font-weight:800; font-size:1.3vw; margin-bottom:.6vh;}
+  .bar{width:60%; border-radius:8px 8px 0 0; background:var(--primary); opacity:.55;}
+  .bar.hl{background:var(--accent); opacity:1;}
+  .bar-lbl{margin-top:.8vh; color:var(--muted); font-size:1.0vw;}
+  /* table */
+  table{border-collapse:collapse; width:100%; font-size:1.05vw;}
+  th{background:var(--dark); color:var(--white); text-align:left; padding:1.2vh 1vw; font-weight:700;}
+  td{padding:1.1vh 1vw; border-bottom:1px solid var(--line); vertical-align:middle;}
+  td.store{font-weight:700; color:var(--primary);}
+  tr:nth-child(even) td{background:#f8fafc;}
+  /* priority rows */
+  .prow{display:flex; align-items:center; gap:1.2vw; background:var(--white); border:1px solid var(--line);
+    border-radius:14px; padding:1.3vh 1.2vw; margin-bottom:1vh;}
+  /* mermaid */
+  .mermaid{display:flex; justify-content:center; width:100%; font-size:15px;}
+  .mermaid svg{width:100% !important; height:auto !important; max-height:46vh;}
+  .slide:nth-child(4) .mermaid svg{max-height:40vh;}
+  .wbs-mods{display:grid; grid-template-columns:repeat(4,1fr); gap:.9vw; margin-top:2vh;}
+  .mod{background:var(--card); border-radius:10px; padding:1.2vh 1vw;}
+  .mod .mt{font-weight:700; font-size:1.0vw;}
+  .mod .track{height:7px; background:#dbe4ec; border-radius:4px; margin-top:.7vh; overflow:hidden;}
+  .mod .fill{height:100%; background:var(--accent); border-radius:4px;}
+  .mod .pct{font-size:.85vw; color:var(--muted); margin-top:.4vh;}
+  /* qa */
+  .qa{font-size:1.2vw; margin:1.3vh 0;}
+  .qa .q{font-weight:800; color:var(--accent); margin-right:.5vw;}
+  /* hud */
+  #hud{position:fixed; bottom:2.2vh; right:2.4vw; z-index:50; display:flex; align-items:center; gap:14px;
+    font-size:13px; color:#94a3b8;}
+  #hud button{background:rgba(255,255,255,.12); color:#cbd5e1; border:1px solid rgba(255,255,255,.25);
+    border-radius:8px; width:34px; height:34px; font-size:16px; cursor:pointer;}
+  .dark #hud button{background:rgba(255,255,255,.14);}
+  #dots{position:fixed; bottom:2.6vh; left:2.4vw; z-index:50; display:flex; gap:8px;}
+  #dots span{width:9px; height:9px; border-radius:50%; background:#cbd5e1; cursor:pointer; transition:.2s;}
+  #dots span.on{background:var(--accent); transform:scale(1.25);}
+  #timer{position:fixed; top:2.2vh; right:2.4vw; z-index:50; font-variant-numeric:tabular-nums;
+    font-weight:800; font-size:18px; color:var(--primary); background:rgba(255,255,255,.85);
+    padding:.4vh 1vw; border-radius:10px; display:none; border:1px solid var(--line);}
+  #timer.warn{color:#EF6461;}
+  .hint{position:fixed; top:2.4vh; left:2.4vw; z-index:50; font-size:12px; color:#94a3b8;}
+  .dark .hint{color:#64748b;}
+  @media (max-width:760px){
+    h1.title{font-size:6vw;} .cover-title{font-size:9vw;} .kicker{font-size:3vw;}
+    .step .t,.num,.bar-val,.prob h3{font-size:4vw;} td,th,ul.clean li,.qa{font-size:3.4vw;}
+  }
+</style>
+</head>
+<body>
+<div class="hint">← → 또는 스페이스로 이동 · F 전체화면 · T 타이머</div>
+<div id="timer">2:00</div>
+<div id="deck">
+
+  <!-- 1. 표지 / 비전 + 문제 -->
+  <section class="slide dark active center" style="text-align:left; align-items:flex-start; justify-content:center;">
+    <div class="blob" style="width:34vw; height:34vw; right:-6vw; top:-10vw; background:rgba(10,126,164,.30);"></div>
+    <div class="blob" style="width:20vw; height:20vw; right:4vw; bottom:-6vw; background:rgba(46,196,182,.18);"></div>
+    <div style="position:relative; z-index:1;">
+      <span class="badge">중간 발표 · 12주차</span>
+      <h1 class="cover-title" style="margin-top:2.4vh;">AI 운동 루틴 코치</h1>
+      <div class="tagline">"AI 코치와 함께하는 개인맞춤 운동 루틴"</div>
+      <p style="margin-top:2.6vh; font-size:1.3vw; color:#cbd5e1; max-width:60vw;">
+        <span class="b" style="color:#fff;">문제</span> — "어떤 운동을 해야 할지 모르겠고, 진도가 보이지 않아 금방 그만둔다."<br/>
+        <span class="b" style="color:var(--accent);">해결</span> — 나이·체력·목표·장비를 입력하면 AI가 맞춤 루틴을 생성하고 진도를 추적합니다.
+      </p>
+      <p style="margin-top:3vh; font-size:1.0vw; color:#7d94a3;">앱 프로그래밍 응용 · 팀 프로젝트 · 프로필 → AI 루틴 → 기록 → 진도</p>
+    </div>
+  </section>
+
+  <!-- 2. 사용자 시나리오 -->
+  <section class="slide">
+    <div class="kicker"><span class="chip"></span> USER SCENARIO</div>
+    <h1 class="title">사용자 시나리오 — 초보자의 첫 루틴</h1>
+    <div class="row grow">
+      <div class="col" style="flex:.42;">
+        <div class="card solid shadow" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+          <div style="width:6vw; height:6vw; min-width:80px; min-height:80px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:2.6vw; font-weight:800; color:#fff;">김</div>
+          <h3 style="font-size:1.7vw; margin-top:1.6vh;">김민준 · 28세</h3>
+          <p style="color:#cbd5e1; font-size:1.1vw; margin-top:1vh; line-height:1.7;">헬스장 초보<br/>목표: 체력 증진<br/>주 3일 · 회당 45분</p>
+        </div>
+      </div>
+      <div class="col" style="flex:.58; display:flex; flex-direction:column; justify-content:center;">
+        <div class="step"><div class="num">1</div><div class="t">프로필 입력</div><div class="d">나이·목표·장비·일수 선택</div></div>
+        <div class="step"><div class="num">2</div><div class="t">AI 루틴 생성</div><div class="d">주 3일 전신 루틴 자동 생성</div></div>
+        <div class="step"><div class="num">3</div><div class="t">운동 기록</div><div class="d">세트를 체크하고 완료 저장</div></div>
+        <div class="step"><div class="num">4</div><div class="t">진도 확인</div><div class="d">이번 주 달성률·통계 시각화</div></div>
+        <p class="primary" style="font-style:italic; font-size:1.1vw; margin-top:.8vh;">복잡한 설정 없이 1분 안에 첫 루틴을 받습니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 아키텍처 (Mermaid) -->
+  <section class="slide">
+    <div class="kicker"><span class="chip"></span> ARCHITECTURE</div>
+    <h1 class="title">아키텍처 · 기술 스택 (Mermaid)</h1>
+    <div class="row grow">
+      <div class="col" style="flex:.62; display:flex; align-items:center;">
+        <pre class="mermaid">
+flowchart LR
+  U["사용자<br/>iOS · Android"] --> APP["React Native<br/>Expo SDK 54 · Zustand"]
+  APP -->|Firebase SDK| FB
+  subgraph FB["Firebase"]
+    direction TB
+    AUTH["Auth<br/>이메일/비번"]
+    FS[("Firestore<br/>프로필·루틴·기록")]
+    CF["Cloud Functions<br/>asia-northeast3"]
+  end
+  CF -->|HTTPS| AI["Google AI Studio<br/>Gemini"]
+  classDef app fill:#0A7EA4,stroke:#0A7EA4,color:#fff;
+  classDef fb fill:#1C7293,stroke:#1C7293,color:#fff;
+  classDef ai fill:#0B2A3A,stroke:#0B2A3A,color:#fff;
+  classDef usr fill:#2EC4B6,stroke:#2EC4B6,color:#0B2A3A;
+  class U usr; class APP app; class AUTH,FS,CF fb; class AI ai;
+        </pre>
+      </div>
+      <div class="col" style="flex:.38; display:flex; flex-direction:column; justify-content:center;">
+        <ul class="clean">
+          <li><span class="dot"></span><div><span class="b">React Native (Expo)</span> <span class="muted">— ADR-0001, 팀 숙련도 → 학습비용 0</span></div></li>
+          <li><span class="dot"></span><div><span class="b">Zustand</span> <span class="muted">— ADR-0002, 가벼운 상태관리</span></div></li>
+          <li><span class="dot"></span><div><span class="b">Firebase</span> <span class="muted">— ADR-0004, Auth·Firestore·Functions 단일화</span></div></li>
+          <li><span class="dot"></span><div><span class="b">키 보안</span> <span class="muted">— AI를 직접 호출하지 않고 Functions 경유 → API 키 미노출</span></div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. WBS (Mermaid Gantt) -->
+  <section class="slide">
+    <div class="kicker"><span class="chip"></span> WBS · SCHEDULE</div>
+    <h1 class="title">프로젝트 WBS · 일정 (10~15주차)</h1>
+    <pre class="mermaid">
+gantt
+  dateFormat YYYY-MM-DD
+  axisFormat %m/%d
+  todayMarker stroke-width:3px,stroke:#EF6461,opacity:0.8
+  section 설계
+    아키텍처·DB·UI 설계        :done,  d1, 2026-05-18, 7d
+  section 개발 1차
+    프로필 화면·AI 엔진 v1      :done,  d2, 2026-05-25, 7d
+  section 중간발표(현재)
+    프로토타입 4화면            :active,d3, 2026-06-01, 4d
+    중간 발표                   :milestone, m1, 2026-06-05, 0d
+  section 개발 2차
+    AI 실연결·Firestore 저장    :        d4, 2026-06-08, 7d
+  section 고도화
+    성과분석·테스트·보안        :        d5, 2026-06-15, 7d
+  section 최종발표
+    QA·출시 준비               :        d6, 2026-06-22, 5d
+    최종 발표                   :milestone, m2, 2026-06-26, 0d
+    </pre>
+    <div class="wbs-mods">
+      <div class="mod"><div class="mt">2. 설계</div><div class="track"><div class="fill" style="width:90%"></div></div><div class="pct">아키텍처·DB·UI · 90%</div></div>
+      <div class="mod"><div class="mt">3. 백엔드</div><div class="track"><div class="fill" style="width:30%"></div></div><div class="pct">인증·API·AI엔진 · 30%</div></div>
+      <div class="mod"><div class="mt">4. 프론트엔드</div><div class="track"><div class="fill" style="width:55%"></div></div><div class="pct">프로필·루틴·기록·대시보드 · 55%</div></div>
+      <div class="mod"><div class="mt">5. AI/ML</div><div class="track"><div class="fill" style="width:20%"></div></div><div class="pct">루틴생성·피드백 · 20%</div></div>
+      <div class="mod"><div class="mt">6. 테스팅</div><div class="track"><div class="fill" style="width:10%"></div></div><div class="pct">단위·통합·기능 · 10%</div></div>
+      <div class="mod"><div class="mt">7. 배포</div><div class="track"><div class="fill" style="width:5%"></div></div><div class="pct">스토어 제출 · 5%</div></div>
+      <div class="mod"><div class="mt">8. 발표·문서</div><div class="track"><div class="fill" style="width:50%"></div></div><div class="pct">중간/최종 발표 · 50%</div></div>
+      <div class="mod" style="background:#0B2A3A; color:#fff;"><div class="mt">전체 진도</div><div class="track" style="background:#1e4256;"><div class="fill" style="width:55%"></div></div><div class="pct" style="color:#9fb6c2;">12주차 기준 · 55%</div></div>
+    </div>
+  </section>
+
+  <!-- 5. 진행 상황 + 데모 -->
+  <section class="slide">
+    <div class="kicker"><span class="chip"></span> PROGRESS &amp; DEMO</div>
+    <h1 class="title">현재 진행 상황 + 데모</h1>
+    <div class="row grow">
+      <div class="col" style="flex:.5; display:flex; flex-direction:column; justify-content:center;">
+        <div class="card outline shadow">
+          <p style="font-size:1.4vw; font-weight:700; margin-bottom:1.4vh;">Must 5개 중 <span class="primary">4개 흐름</span> 동작 <span class="muted" style="font-size:1.0vw;">(더미 데이터)</span></p>
+          <ul class="clean" style="font-size:1.1vw;">
+            <li><span class="dot"></span><div><span class="b">프로필 입력</span> <span class="muted">· Must #1</span></div></li>
+            <li><span class="dot"></span><div><span class="b">AI 루틴 (로딩→생성)</span> <span class="muted">· Must #2</span></div></li>
+            <li><span class="dot"></span><div><span class="b">운동 기록 (체크→완료)</span> <span class="muted">· Must #3</span></div></li>
+            <li><span class="dot"></span><div><span class="b">홈 대시보드 (진도·통계)</span> <span class="muted">· Must #4·#5</span></div></li>
+          </ul>
+          <p class="primary" style="font-style:italic; font-size:1.0vw; margin-top:1vh;">데이터 흐름은 Zustand 스토어로 화면 간 연결</p>
+        </div>
+      </div>
+      <div class="col" style="flex:.5; display:flex; flex-direction:column; justify-content:center;">
+        <p class="b" style="font-size:1.3vw; margin-bottom:1.6vh;">주별 운동량 (총 세트)</p>
+        <div class="chart">
+          <div class="bar-wrap"><div class="bar-val muted">4</div><div class="bar" style="height:36%"></div><div class="bar-lbl">3주전</div></div>
+          <div class="bar-wrap"><div class="bar-val muted">7</div><div class="bar" style="height:64%"></div><div class="bar-lbl">2주전</div></div>
+          <div class="bar-wrap"><div class="bar-val muted">5</div><div class="bar" style="height:45%"></div><div class="bar-lbl">1주전</div></div>
+          <div class="bar-wrap"><div class="bar-val primary">11</div><div class="bar hl" style="height:100%"></div><div class="bar-lbl">이번주</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="muted" style="font-size:1.0vw; margin-top:2vh;">데모 흐름: 프로필 → AI 루틴 생성 → 오늘 운동 기록 → 홈에서 진행률·총 세트·그래프 갱신 <span class="accent">(네트워크 의존 없음 → 라이브에서 안 끊김)</span></p>
+  </section>
+
+  <!-- 6. 데이터 저장 전략 -->
+  <section class="slide">
+    <div class="kicker"><span class="chip"></span> DATA STORAGE</div>
+    <h1 class="title">데이터 저장 전략 — 용도별 저장소 분리</h1>
+    <table>
+      <tr><th style="width:26%">데이터</th><th style="width:24%">저장소</th><th>선택 이유</th></tr>
+      <tr><td>인증 토큰 · 민감 비밀값</td><td class="store">Expo SecureStore</td><td class="muted">OS 키체인 기반 암호화 (민감값 전용)</td></tr>
+      <tr><td>프로필 · 활성 루틴</td><td class="store">Firestore 오프라인 캐시</td><td class="muted">내장 캐시로 오프라인 읽기 자동 → 중복 캐싱 불필요</td></tr>
+      <tr><td>운동 기록 · 걸음 수(시계열)</td><td class="store">Expo SQLite</td><td class="muted">날짜 범위 조회·집계 = 관계형 쿼리, 오프라인 우선</td></tr>
+      <tr><td>운동 영상 · 이미지</td><td class="store">Expo FileSystem</td><td class="muted">바이너리·다운로드 캐시 전용</td></tr>
+      <tr><td>앱 설정(테마·온보딩)</td><td class="store">AsyncStorage</td><td class="muted">작고 단순한 key-value</td></tr>
+    </table>
+    <div class="card" style="margin-top:2.2vh; background:#eef6f9;">
+      <p style="font-size:1.05vw;"><span class="b primary">원칙</span> &nbsp;단일 진실 공급원 — Firestore가 캐시하는 데이터를 AsyncStorage로 중복 저장하지 않는다. 다건·집계는 SQLite로 로컬 우선 후 동기화.</p>
+    </div>
+  </section>
+
+  <!-- 7. 남은 일정 + Q&A -->
+  <section class="slide dark">
+    <div class="blob" style="width:26vw; height:26vw; left:-8vw; bottom:-10vw; background:rgba(10,126,164,.25);"></div>
+    <div style="position:relative; z-index:1;">
+      <div class="kicker" style="color:var(--accent);"><span class="chip"></span> NEXT PLAN &amp; Q&amp;A</div>
+      <h1 class="title">남은 일정 · 우선순위</h1>
+      <div class="row" style="gap:1vw; margin-bottom:1.4vh;">
+        <div class="card" style="flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; text-align:center;"><span class="accent b" style="font-size:1.6vw;">1</span><div style="font-size:1.0vw; margin-top:.6vh;">AI 실연결<br/><span style="color:#9fb6c2;">Functions→Gemini</span></div></div>
+        <div class="card" style="flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; text-align:center;"><span class="accent b" style="font-size:1.6vw;">2</span><div style="font-size:1.0vw; margin-top:.6vh;">데이터 저장 전략<br/><span style="color:#9fb6c2;">SQLite·캐시</span></div></div>
+        <div class="card" style="flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; text-align:center;"><span class="accent b" style="font-size:1.6vw;">3</span><div style="font-size:1.0vw; margin-top:.6vh;">Firestore 실저장<br/><span style="color:#9fb6c2;">프로필·기록</span></div></div>
+        <div class="card" style="flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.15); color:#fff; text-align:center;"><span class="accent b" style="font-size:1.6vw;">4</span><div style="font-size:1.0vw; margin-top:.6vh;">Should 기능<br/><span style="color:#9fb6c2;">AI 피드백</span></div></div>
+      </div>
+      <div style="margin-top:1.6vh;">
+        <p class="qa"><span class="q">Q</span><span class="b">AI 진짜 되나요?</span> <span style="color:#cbd5e1;">현재는 더미. 호출 경로·키 보안 설계 완료 → 다음 주 연결</span></p>
+        <p class="qa"><span class="q">Q</span><span class="b">오프라인에서도 되나요?</span> <span style="color:#cbd5e1;">Firestore 캐시로 읽기 대응, 기록은 SQLite 로컬 우선 후 동기화</span></p>
+        <p class="qa"><span class="q">Q</span><span class="b">왜 저장소를 여러 개 쓰나요?</span> <span style="color:#cbd5e1;">보안·다건 조회·바이너리·설정은 요구가 달라 도구를 분리</span></p>
+      </div>
+      <p style="margin-top:2vh; font-size:1.4vw; font-style:italic; color:var(--accent);">감사합니다 — 피드백을 받아 다음 주 우선순위를 정하겠습니다.</p>
+    </div>
+  </section>
+
+</div>
+
+<div id="timerBox"></div>
+<div id="dots"></div>
+<div id="hud">
+  <span id="counter">1 / 7</span>
+  <button id="prev" aria-label="이전">‹</button>
+  <button id="next" aria-label="다음">›</button>
+</div>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad:true, securityLevel:"loose",
+    theme:"base",
+    themeVariables:{
+      primaryColor:"#0A7EA4", primaryTextColor:"#fff", primaryBorderColor:"#0A7EA4",
+      lineColor:"#64748B", fontFamily:"Apple SD Gothic Neo, Pretendard, sans-serif",
+      // gantt
+      taskBkgColor:"#0A7EA4", taskBorderColor:"#0A7EA4", taskTextColor:"#fff",
+      activeTaskBkgColor:"#2EC4B6", activeTaskBorderColor:"#2EC4B6",
+      doneTaskBkgColor:"#94c5d6", doneTaskBorderColor:"#94c5d6",
+      gridColor:"#E2E8F0", sectionBkgColor:"#f8fafc", altSectionBkgColor:"#eef2f6",
+      todayLineColor:"#EF6461"
+    }
+  });
+</script>
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const counter = document.getElementById('counter');
+  const dotsWrap = document.getElementById('dots');
+  let idx = 0;
+
+  slides.forEach((_,i)=>{
+    const d = document.createElement('span');
+    if(i===0) d.classList.add('on');
+    d.addEventListener('click',()=>go(i));
+    dotsWrap.appendChild(d);
+  });
+  const dots = Array.from(dotsWrap.children);
+
+  function go(n){
+    idx = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
+    dots.forEach((d,i)=>d.classList.toggle('on', i===idx));
+    counter.textContent = `${idx+1} / ${slides.length}`;
+    document.body.classList.toggle('on-dark', slides[idx].classList.contains('dark'));
+  }
+  function next(){ go(idx+1); }
+  function prev(){ go(idx-1); }
+
+  document.getElementById('next').addEventListener('click', next);
+  document.getElementById('prev').addEventListener('click', prev);
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ') { e.preventDefault(); next(); }
+    else if(e.key==='ArrowLeft'||e.key==='PageUp') { e.preventDefault(); prev(); }
+    else if(e.key==='Home') go(0);
+    else if(e.key==='End') go(slides.length-1);
+    else if(e.key.toLowerCase()==='f') toggleFull();
+    else if(e.key.toLowerCase()==='t') toggleTimer();
+  });
+  function toggleFull(){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+
+  // 선택적 2분 타이머 (T 키) — 리허설용. 발표는 스마트폰 타이머 권장.
+  const timerEl = document.getElementById('timer');
+  let tHandle=null, remain=120;
+  function fmt(s){ const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
+  function toggleTimer(){
+    if(tHandle){ clearInterval(tHandle); tHandle=null; timerEl.style.display='none'; remain=120; timerEl.classList.remove('warn'); return; }
+    remain=120; timerEl.textContent=fmt(remain); timerEl.style.display='block';
+    tHandle=setInterval(()=>{
+      remain--; timerEl.textContent=fmt(Math.max(0,remain));
+      if(remain<=30) timerEl.classList.add('warn');
+      if(remain<=0){ clearInterval(tHandle); tHandle=null; timerEl.textContent="0:00 ⏰"; }
+    },1000);
+  }
+
+  // 터치/클릭 좌우 이동 (HUD 버튼·점 제외)
+  document.getElementById('deck').addEventListener('click', e=>{
+    if(e.target.closest('#hud')||e.target.closest('#dots')||e.target.closest('a')) return;
+    const x = e.clientX / window.innerWidth;
+    if(x > 0.62) next(); else if(x < 0.38) prev();
+  });
+  go(0);
+</script>
+</body>
+</html>
