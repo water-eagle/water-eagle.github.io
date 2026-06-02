@@ -1,174 +1,607 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI 운동 루틴 코치 · 중간 발표</title>
-<style>
-  :root{
-    --dark:#0B2A3A; --primary:#0A7EA4; --accent:#2EC4B6;
-    --ink:#1E293B; --muted:#64748B; --card:#F1F5F9; --line:#E2E8F0; --white:#fff;
-    --warn:#EF6461;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{height:100%;}
-  body{
-    font-family:"Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;
-    background:#0a1922; color:var(--ink); overflow:hidden;
-  }
-  /* deck */
-  #deck{position:fixed; inset:0;}
-  .slide{
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    padding:4.2vh 5vw 7vh; opacity:0; visibility:hidden;
-    transition:opacity .35s ease; background:var(--white); overflow:auto;
-  }
-  .slide.active{opacity:1; visibility:visible; z-index:2;}
-  .slide.dark{background:var(--dark); color:var(--white);}
-  /* header */
-  .kicker{display:flex; align-items:center; gap:10px; font-size:1.2vw; font-weight:800;
-    letter-spacing:2px; color:var(--primary); text-transform:uppercase;}
-  .kicker .chip{width:18px; height:18px; border-radius:5px; background:var(--accent);}
-  h1.title{font-size:3.4vw; font-weight:800; margin:.5vh 0 1.6vh; line-height:1.15;}
-  .dark h1.title{color:var(--white);}
-  /* layout helpers */
-  .row{display:flex; gap:2vw;}
-  .col{flex:1; min-width:0;}
-  .grow{flex:1;}
-  .center{align-items:center; justify-content:center; text-align:center;}
-  .muted{color:var(--muted);}
-  .accent{color:var(--accent);}
-  .primary{color:var(--primary);}
-  .b{font-weight:700;}
-  /* cards */
-  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:2.2vh 1.6vw;}
-  .card.solid{background:var(--dark); color:var(--white); border:none;}
-  .card.outline{background:var(--white);}
-  .shadow{box-shadow:0 8px 24px rgba(11,42,58,.10);}
-  /* cover */
-  .badge{display:inline-block; background:var(--accent); color:var(--dark);
-    font-weight:800; padding:.7vh 1.2vw; border-radius:10px; font-size:1.3vw;}
-  .cover-title{font-size:5.8vw; font-weight:800; color:var(--white); line-height:1.05;}
-  .tagline{font-size:2.2vw; font-style:italic; color:var(--accent); margin-top:1.2vh;}
-  .blob{position:absolute; border-radius:50%; filter:blur(1px); z-index:0;}
-  /* problem cards */
-  .prob{display:flex; gap:14px; align-items:flex-start; padding:2vh 1.4vw; background:var(--card);
-    border-radius:14px; border-left:6px solid #EF6461;}
-  .prob h3{font-size:1.7vw; margin-bottom:.6vh;}
-  .prob p{font-size:1.25vw; color:var(--muted);}
-  /* step rows */
-  .step{display:flex; align-items:center; gap:1vw; background:var(--white); border:1px solid var(--line);
-    border-radius:14px; padding:1.4vh 1.2vw; margin-bottom:1.1vh;}
-  .num{flex:none; width:2.6vw; height:2.6vw; min-width:38px; min-height:38px; border-radius:50%;
-    background:var(--accent); color:var(--dark); font-weight:800; display:flex; align-items:center;
-    justify-content:center; font-size:1.5vw;}
-  .step .t{font-weight:700; font-size:1.5vw; flex:none; width:14vw;}
-  .step .d{color:var(--muted); font-size:1.25vw;}
-  /* bullet list */
-  ul.clean{list-style:none;}
-  ul.clean li{display:flex; gap:12px; align-items:flex-start; margin:1.1vh 0; font-size:1.4vw;}
-  ul.clean li .dot{flex:none; width:14px; height:14px; border-radius:50%; background:var(--accent); margin-top:.6vh;}
-  /* progress grid */
-  .pgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:1.1vw; margin-top:1.6vh;}
-  .pgrid .mod{background:var(--card); border-radius:12px; padding:1.4vh 1.2vw;}
-  .pgrid .mod .mt{font-weight:700; font-size:1.25vw;}
-  .pgrid .mod .track{height:10px; background:#dbe4ec; border-radius:5px; margin-top:.8vh; overflow:hidden;}
-  .pgrid .mod .fill{height:100%; background:var(--accent); border-radius:5px;}
-  .pgrid .mod .fill.warn{background:var(--warn);}
-  .pgrid .mod .fill.dim{background:#94a3b8;}
-  .pgrid .mod .pct{font-size:1.1vw; color:var(--muted); margin-top:.5vh;}
-  .pgrid .mod.total{background:var(--dark); color:#fff;}
-  .pgrid .mod.total .track{background:#1e4256;}
-  .pgrid .mod.total .pct{color:#9fb6c2;}
-  /* mermaid */
-  .mermaid{display:flex; justify-content:center; width:100%; font-size:18px;}
-  .mermaid svg{width:100% !important; height:auto !important; max-height:56vh;}
-  /* priority rows */
-  .prow{display:flex; align-items:center; gap:1.2vw; background:rgba(255,255,255,.07);
-    border:1px solid rgba(255,255,255,.18); border-radius:14px; padding:1.4vh 1.2vw; margin-bottom:1.1vh; color:#fff;}
-  .prow .pnum{flex:none; width:2.8vw; height:2.8vw; min-width:42px; min-height:42px; border-radius:50%;
-    background:var(--accent); color:var(--dark); font-weight:800; display:flex; align-items:center;
-    justify-content:center; font-size:1.5vw;}
-  .prow .pt{font-weight:700; font-size:1.45vw; flex:none; width:17vw;}
-  .prow .pd{color:#cbd5e1; font-size:1.25vw;}
-  /* hud */
-  #hud{position:fixed; bottom:2.2vh; right:2.4vw; z-index:50; display:flex; align-items:center; gap:14px;
-    font-size:13px; color:#94a3b8;}
-  #hud button{background:rgba(255,255,255,.12); color:#cbd5e1; border:1px solid rgba(255,255,255,.25);
-    border-radius:8px; width:34px; height:34px; font-size:16px; cursor:pointer;}
-  .dark #hud button{background:rgba(255,255,255,.14);}
-  #dots{position:fixed; bottom:2.6vh; left:2.4vw; z-index:50; display:flex; gap:8px;}
-  #dots span{width:9px; height:9px; border-radius:50%; background:#cbd5e1; cursor:pointer; transition:.2s;}
-  #dots span.on{background:var(--accent); transform:scale(1.25);}
-  #timer{position:fixed; top:2.2vh; right:2.4vw; z-index:50; font-variant-numeric:tabular-nums;
-    font-weight:800; font-size:18px; color:var(--primary); background:rgba(255,255,255,.85);
-    padding:.4vh 1vw; border-radius:10px; display:none; border:1px solid var(--line);}
-  #timer.warn{color:#EF6461;}
-  .hint{position:fixed; top:2.4vh; left:2.4vw; z-index:50; font-size:12px; color:#94a3b8;}
-  .dark .hint{color:#64748b;}
-  @media (max-width:760px){
-    h1.title{font-size:6vw;} .cover-title{font-size:9vw;} .kicker{font-size:3vw;}
-    .step .t,.num,.prob h3{font-size:4vw;}
-    .pgrid{grid-template-columns:repeat(2,1fr);}
-  }
-</style>
-</head>
-<body>
-<div class="hint">← → 또는 스페이스로 이동 · F 전체화면 · T 타이머</div>
-<div id="timer">2:00</div>
-<div id="deck">
-
-  <!-- 1. 표지 + 문제 정의 + 가치 제안 -->
-  <section class="slide dark active" style="text-align:left; align-items:flex-start; justify-content:center;">
-    <div class="blob" style="width:34vw; height:34vw; right:-6vw; top:-10vw; background:rgba(10,126,164,.30);"></div>
-    <div class="blob" style="width:20vw; height:20vw; right:4vw; bottom:-6vw; background:rgba(46,196,182,.18);"></div>
-    <div style="position:relative; z-index:1;">
-      <span class="badge">중간 발표 · 12주차</span>
-      <h1 class="cover-title" style="margin-top:2.4vh;">AI 운동 루틴 코치</h1>
-      <div class="tagline">"나이·경력·장비만 입력하면, AI가 내 운동을 짜준다"</div>
-      <div style="margin-top:3vh; max-width:62vw;">
-        <p style="font-size:1.55vw; color:#cbd5e1; line-height:1.7;">
-          <span class="b" style="color:#fff;">문제</span> — 헬스장에 가도 <span class="b" style="color:#fff;">어떤 기구를 어떻게 써야 할지 몰라</span> 운동을 시작 못 하는 초보자가 많다.
-        </p>
-        <p style="font-size:1.55vw; color:#cbd5e1; line-height:1.7; margin-top:1.2vh;">
-          <span class="b" style="color:var(--accent);">해결</span> — 사용자가 <span class="b" style="color:#fff;">나이·운동 경력·목표·보유 장비</span>를 입력하면, AI가 그 정보를 바탕으로 <span class="b" style="color:#fff;">맞춤 운동 루틴을 생성</span>한다.
-        </p>
-      </div>
-      <p style="margin-top:3vh; font-size:1.2vw; color:#7d94a3;">앱 프로그래밍 응용 · 팀 프로젝트 · 프로필 → AI 루틴 → 기록 → 통계</p>
-    </div>
-  </section>
-
-  <!-- 2. 사용자 시나리오 -->
-  <section class="slide">
-    <div class="kicker"><span class="chip"></span> USER SCENARIO</div>
-    <h1 class="title">사용자 시나리오 — 운동 초보자의 1주일</h1>
-    <div class="row grow">
-      <div class="col" style="flex:.40;">
-        <div class="card solid shadow" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
-          <div style="width:7vw; height:7vw; min-width:96px; min-height:96px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:3.0vw; font-weight:800; color:#fff;">민</div>
-          <h3 style="font-size:1.95vw; margin-top:1.6vh;">김민준 <span style="color:var(--accent); font-size:1.4vw;">· 운동 초보자</span></h3>
-          <p style="color:#cbd5e1; font-size:1.3vw; margin-top:1.2vh; line-height:1.7;">
-            "단지 안에 헬스장이 있는데<br/>기구를 어떻게 쓰는지 모르겠어요"
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 운동 루틴 코치 · 중간 발표</title>
+    <style>
+      :root {
+        --dark: #0b2a3a;
+        --primary: #0a7ea4;
+        --accent: #2ec4b6;
+        --ink: #1e293b;
+        --muted: #64748b;
+        --card: #f1f5f9;
+        --line: #e2e8f0;
+        --white: #fff;
+        --warn: #ef6461;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family:
+          "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui,
+          sans-serif;
+        background: #0a1922;
+        color: var(--ink);
+        overflow: hidden;
+      }
+      /* deck */
+      #deck {
+        position: fixed;
+        inset: 0;
+      }
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 4.2vh 5vw 7vh;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.35s ease;
+        background: var(--white);
+        overflow: auto;
+      }
+      .slide.active {
+        opacity: 1;
+        visibility: visible;
+        z-index: 2;
+      }
+      .slide.dark {
+        background: var(--dark);
+        color: var(--white);
+      }
+      /* header */
+      .kicker {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.2vw;
+        font-weight: 800;
+        letter-spacing: 2px;
+        color: var(--primary);
+        text-transform: uppercase;
+      }
+      .kicker .chip {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: var(--accent);
+      }
+      h1.title {
+        font-size: 3.4vw;
+        font-weight: 800;
+        margin: 0.5vh 0 1.6vh;
+        line-height: 1.15;
+      }
+      .dark h1.title {
+        color: var(--white);
+      }
+      /* layout helpers */
+      .row {
+        display: flex;
+        gap: 2vw;
+      }
+      .col {
+        flex: 1;
+        min-width: 0;
+      }
+      .grow {
+        flex: 1;
+      }
+      .center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .accent {
+        color: var(--accent);
+      }
+      .primary {
+        color: var(--primary);
+      }
+      .b {
+        font-weight: 700;
+      }
+      /* cards */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 2.2vh 1.6vw;
+      }
+      .card.solid {
+        background: var(--dark);
+        color: var(--white);
+        border: none;
+      }
+      .card.outline {
+        background: var(--white);
+      }
+      .shadow {
+        box-shadow: 0 8px 24px rgba(11, 42, 58, 0.1);
+      }
+      /* cover */
+      .badge {
+        display: inline-block;
+        background: var(--accent);
+        color: var(--dark);
+        font-weight: 800;
+        padding: 0.7vh 1.2vw;
+        border-radius: 10px;
+        font-size: 1.3vw;
+      }
+      .cover-title {
+        font-size: 5.8vw;
+        font-weight: 800;
+        color: var(--white);
+        line-height: 1.05;
+      }
+      .tagline {
+        font-size: 2.2vw;
+        font-style: italic;
+        color: var(--accent);
+        margin-top: 1.2vh;
+      }
+      .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(1px);
+        z-index: 0;
+      }
+      /* problem cards */
+      .prob {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 2vh 1.4vw;
+        background: var(--card);
+        border-radius: 14px;
+        border-left: 6px solid #ef6461;
+      }
+      .prob h3 {
+        font-size: 1.7vw;
+        margin-bottom: 0.6vh;
+      }
+      .prob p {
+        font-size: 1.25vw;
+        color: var(--muted);
+      }
+      /* step rows */
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 1vw;
+        background: var(--white);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.4vh 1.2vw;
+        margin-bottom: 1.1vh;
+      }
+      .num {
+        flex: none;
+        width: 2.6vw;
+        height: 2.6vw;
+        min-width: 38px;
+        min-height: 38px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--dark);
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5vw;
+      }
+      .step .t {
+        font-weight: 700;
+        font-size: 1.5vw;
+        flex: none;
+        width: 14vw;
+      }
+      .step .d {
+        color: var(--muted);
+        font-size: 1.25vw;
+      }
+      /* bullet list */
+      ul.clean {
+        list-style: none;
+      }
+      ul.clean li {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin: 1.1vh 0;
+        font-size: 1.4vw;
+      }
+      ul.clean li .dot {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        margin-top: 0.6vh;
+      }
+      /* progress grid */
+      .pgrid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.1vw;
+        margin-top: 1.6vh;
+      }
+      .pgrid .mod {
+        background: var(--card);
+        border-radius: 12px;
+        padding: 1.4vh 1.2vw;
+      }
+      .pgrid .mod .mt {
+        font-weight: 700;
+        font-size: 1.25vw;
+      }
+      .pgrid .mod .track {
+        height: 10px;
+        background: #dbe4ec;
+        border-radius: 5px;
+        margin-top: 0.8vh;
+        overflow: hidden;
+      }
+      .pgrid .mod .fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 5px;
+      }
+      .pgrid .mod .fill.warn {
+        background: var(--warn);
+      }
+      .pgrid .mod .fill.dim {
+        background: #94a3b8;
+      }
+      .pgrid .mod .pct {
+        font-size: 1.1vw;
+        color: var(--muted);
+        margin-top: 0.5vh;
+      }
+      .pgrid .mod.total {
+        background: var(--dark);
+        color: #fff;
+      }
+      .pgrid .mod.total .track {
+        background: #1e4256;
+      }
+      .pgrid .mod.total .pct {
+        color: #9fb6c2;
+      }
+      /* mermaid */
+      .mermaid {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        font-size: 18px;
+      }
+      .mermaid svg {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 56vh;
+      }
+      /* priority rows */
+      .prow {
+        display: flex;
+        align-items: center;
+        gap: 1.2vw;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        padding: 1.4vh 1.2vw;
+        margin-bottom: 1.1vh;
+        color: #fff;
+      }
+      .prow .pnum {
+        flex: none;
+        width: 2.8vw;
+        height: 2.8vw;
+        min-width: 42px;
+        min-height: 42px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--dark);
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5vw;
+      }
+      .prow .pt {
+        font-weight: 700;
+        font-size: 1.45vw;
+        flex: none;
+        width: 17vw;
+      }
+      .prow .pd {
+        color: #cbd5e1;
+        font-size: 1.25vw;
+      }
+      /* hud */
+      #hud {
+        position: fixed;
+        bottom: 2.2vh;
+        right: 2.4vw;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+      #hud button {
+        background: rgba(255, 255, 255, 0.12);
+        color: #cbd5e1;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 8px;
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .dark #hud button {
+        background: rgba(255, 255, 255, 0.14);
+      }
+      #dots {
+        position: fixed;
+        bottom: 2.6vh;
+        left: 2.4vw;
+        z-index: 50;
+        display: flex;
+        gap: 8px;
+      }
+      #dots span {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      #dots span.on {
+        background: var(--accent);
+        transform: scale(1.25);
+      }
+      #timer {
+        position: fixed;
+        top: 2.2vh;
+        right: 2.4vw;
+        z-index: 50;
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        font-size: 18px;
+        color: var(--primary);
+        background: rgba(255, 255, 255, 0.85);
+        padding: 0.4vh 1vw;
+        border-radius: 10px;
+        display: none;
+        border: 1px solid var(--line);
+      }
+      #timer.warn {
+        color: #ef6461;
+      }
+      .hint {
+        position: fixed;
+        top: 2.4vh;
+        left: 2.4vw;
+        z-index: 50;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .dark .hint {
+        color: #64748b;
+      }
+      @media (max-width: 760px) {
+        h1.title {
+          font-size: 6vw;
+        }
+        .cover-title {
+          font-size: 9vw;
+        }
+        .kicker {
+          font-size: 3vw;
+        }
+        .step .t,
+        .num,
+        .prob h3 {
+          font-size: 4vw;
+        }
+        .pgrid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hint">← → 또는 스페이스로 이동 · F 전체화면 · T 타이머</div>
+    <div id="timer">2:00</div>
+    <div id="deck">
+      <!-- 1. 표지 + 문제 정의 + 가치 제안 -->
+      <section
+        class="slide dark active"
+        style="
+          text-align: left;
+          align-items: flex-start;
+          justify-content: center;
+        "
+      >
+        <div
+          class="blob"
+          style="
+            width: 34vw;
+            height: 34vw;
+            right: -6vw;
+            top: -10vw;
+            background: rgba(10, 126, 164, 0.3);
+          "
+        ></div>
+        <div
+          class="blob"
+          style="
+            width: 20vw;
+            height: 20vw;
+            right: 4vw;
+            bottom: -6vw;
+            background: rgba(46, 196, 182, 0.18);
+          "
+        ></div>
+        <div style="position: relative; z-index: 1">
+          <span class="badge">중간 발표 · 12주차</span>
+          <h1 class="cover-title" style="margin-top: 2.4vh">
+            AI 운동 루틴 코치
+          </h1>
+          <div class="tagline">
+            "나이·경력·장비만 입력하면, AI가 내 운동을 짜준다"
+          </div>
+          <div style="margin-top: 3vh; max-width: 62vw">
+            <p style="font-size: 1.55vw; color: #cbd5e1; line-height: 1.7">
+              <span class="b" style="color: #fff">문제</span> — 헬스장에 가도
+              <span class="b" style="color: #fff"
+                >어떤 기구를 어떻게 써야 할지 몰라</span
+              >
+              운동을 시작 못 하는 초보자가 많다.
+            </p>
+            <p
+              style="
+                font-size: 1.55vw;
+                color: #cbd5e1;
+                line-height: 1.7;
+                margin-top: 1.2vh;
+              "
+            >
+              <span class="b" style="color: var(--accent)">해결</span> —
+              사용자가
+              <span class="b" style="color: #fff"
+                >나이·운동 경력·목표·보유 장비</span
+              >를 입력하면, AI가 그 정보를 바탕으로
+              <span class="b" style="color: #fff">맞춤 운동 루틴을 생성</span
+              >한다.
+            </p>
+          </div>
+          <p style="margin-top: 3vh; font-size: 1.2vw; color: #7d94a3">
+            앱 프로그래밍 응용 · 팀 프로젝트 · 프로필 → AI 루틴 → 기록 → 통계
           </p>
         </div>
-      </div>
-      <div class="col" style="flex:.60; display:flex; flex-direction:column; justify-content:center;">
-        <div class="step"><div class="num">1</div><div class="t">프로필 입력</div><div class="d">나이 · 운동 경력 · 보유 장비 입력</div></div>
-        <div class="step"><div class="num">2</div><div class="t">AI 맞춤 루틴 생성</div><div class="d">입력값을 토대로 루틴을 자동 생성</div></div>
-        <div class="step"><div class="num">3</div><div class="t">기록 → 달력 표시</div><div class="d">사용한 기구 · 세트 수를 직접 작성 → 달력에 자동 표시</div></div>
-        <div class="step"><div class="num">4</div><div class="t">주간 통계 확인</div><div class="d">이번 주 어떤 운동을 했는지 통계에서 확인</div></div>
-        <p class="primary" style="font-style:italic; font-size:1.3vw; margin-top:.8vh;">복잡한 설정 없이 입력 → 루틴 → 기록 → 통계 한 루프.</p>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- 3. 아키텍처 / 기술 스택 -->
-  <section class="slide">
-    <div class="kicker"><span class="chip"></span> ARCHITECTURE</div>
-    <h1 class="title">아키텍처 · 기술 스택</h1>
-    <div class="row grow">
-      <div class="col" style="flex:.62; display:flex; align-items:center;">
-        <pre class="mermaid">
+      <!-- 2. 사용자 시나리오 -->
+      <section class="slide">
+        <div class="kicker"><span class="chip"></span> USER SCENARIO</div>
+        <h1 class="title">사용자 시나리오 — 운동 초보자의 1주일</h1>
+        <div class="row grow">
+          <div class="col" style="flex: 0.4">
+            <div
+              class="card solid shadow"
+              style="
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+              "
+            >
+              <div
+                style="
+                  width: 7vw;
+                  height: 7vw;
+                  min-width: 96px;
+                  min-height: 96px;
+                  border-radius: 50%;
+                  background: var(--primary);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 3vw;
+                  font-weight: 800;
+                  color: #fff;
+                "
+              >
+                민
+              </div>
+              <h3 style="font-size: 1.95vw; margin-top: 1.6vh">
+                김민준
+                <span style="color: var(--accent); font-size: 1.4vw"
+                  >· 운동 초보자</span
+                >
+              </h3>
+              <p
+                style="
+                  color: #cbd5e1;
+                  font-size: 1.3vw;
+                  margin-top: 1.2vh;
+                  line-height: 1.7;
+                "
+              >
+                "단지 안에 헬스장이 있는데<br />기구를 어떻게 쓰는지 모르겠어요"
+              </p>
+            </div>
+          </div>
+          <div
+            class="col"
+            style="
+              flex: 0.6;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+            "
+          >
+            <div class="step">
+              <div class="num">1</div>
+              <div class="t">프로필 입력</div>
+              <div class="d">나이 · 운동 경력 · 보유 장비 입력</div>
+            </div>
+            <div class="step">
+              <div class="num">2</div>
+              <div class="t">AI 맞춤 루틴 생성</div>
+              <div class="d">입력값을 토대로 루틴을 자동 생성</div>
+            </div>
+            <div class="step">
+              <div class="num">3</div>
+              <div class="t">기록 → 달력 표시</div>
+              <div class="d">
+                사용한 기구 · 세트 수를 직접 작성 → 달력에 자동 표시
+              </div>
+            </div>
+            <div class="step">
+              <div class="num">4</div>
+              <div class="t">주간 통계 확인</div>
+              <div class="d">이번 주 어떤 운동을 했는지 통계에서 확인</div>
+            </div>
+            <p
+              class="primary"
+              style="font-style: italic; font-size: 1.3vw; margin-top: 0.8vh"
+            >
+              복잡한 설정 없이 입력 → 루틴 → 기록 → 통계 한 루프.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 아키텍처 / 기술 스택 -->
+      <section class="slide">
+        <div class="kicker"><span class="chip"></span> ARCHITECTURE</div>
+        <h1 class="title">아키텍처 · 기술 스택</h1>
+        <div class="row grow">
+          <div
+            class="col"
+            style="flex: 0.62; display: flex; align-items: center"
+          >
+            <pre class="mermaid">
 flowchart LR
   U["사용자<br/>iOS · Android"] --> APP["React Native<br/>(Expo)"]
   APP -->|REST API| BE["Node.js + Express<br/>(TypeScript)"]
@@ -181,151 +614,383 @@ flowchart LR
   classDef usr fill:#2EC4B6,stroke:#2EC4B6,color:#0B2A3A;
   class U usr; class APP app; class BE be; class FB fb; class AI ai;
         </pre>
-      </div>
-      <div class="col" style="flex:.38; display:flex; flex-direction:column; justify-content:center;">
-        <ul class="clean">
-          <li><span class="dot"></span><div><span class="b">Frontend</span> <span class="muted">— React Native (Expo SDK 54)</span></div></li>
-          <li><span class="dot"></span><div><span class="b">Backend</span> <span class="muted">— Node.js + Express (TypeScript)</span></div></li>
-          <li><span class="dot"></span><div><span class="b">DB / Auth</span> <span class="muted">— Firebase (Firestore + Auth)</span></div></li>
-          <li><span class="dot"></span><div><span class="b">AI</span> <span class="muted">— Google AI Studio · Gemini API</span></div></li>
-          <li><span class="dot"></span><div><span class="b">키 보안</span> <span class="muted">— Gemini 키는 백엔드에서만 보관 · 앱은 호출 X</span></div></li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- 4. 현재 진행 상황 + 데모 -->
-  <section class="slide">
-    <div class="kicker"><span class="chip"></span> PROGRESS &amp; DEMO</div>
-    <h1 class="title">현재 진행 상황 + 데모</h1>
-    <div class="row" style="gap:2vw;">
-      <div class="col" style="flex:.42;">
-        <div class="card outline shadow" style="height:100%;">
-          <p style="font-size:1.5vw; font-weight:700; margin-bottom:1.2vh;">현 단계 <span class="muted" style="font-size:1.2vw;">— 코드 작성 전, 설계 마무리 중</span></p>
-          <ul class="clean" style="font-size:1.25vw;">
-            <li><span class="dot"></span><div><span class="b">아키텍처 설계</span> <span class="muted">거의 완료 (90%)</span></div></li>
-            <li><span class="dot"></span><div><span class="b">UI 데모 화면 4종</span> <span class="muted">프로필 · 루틴 · 기록 · 대시보드 (목업)</span></div></li>
-            <li><span class="dot"></span><div><span class="b">실제 구현</span> <span class="muted">백엔드 · 프론트엔드 · AI 연동 전부 0%</span></div></li>
-            <li><span class="dot"></span><div><span class="b">중간 발표 문서</span> <span class="muted">50%</span></div></li>
-          </ul>
-          <p class="primary" style="font-style:italic; font-size:1.2vw; margin-top:1.2vh;">설계가 끝났으니 다음 주부터 실제 코드 작성에 진입합니다.</p>
+          </div>
+          <div
+            class="col"
+            style="
+              flex: 0.38;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+            "
+          >
+            <ul class="clean">
+              <li>
+                <span class="dot"></span>
+                <div>
+                  <span class="b">Frontend</span>
+                  <span class="muted">— React Native (Expo SDK 54)</span>
+                </div>
+              </li>
+              <li>
+                <span class="dot"></span>
+                <div>
+                  <span class="b">Backend</span>
+                  <span class="muted">— Node.js + Express (TypeScript)</span>
+                </div>
+              </li>
+              <li>
+                <span class="dot"></span>
+                <div>
+                  <span class="b">DB / Auth</span>
+                  <span class="muted">— Firebase (Firestore + Auth)</span>
+                </div>
+              </li>
+              <li>
+                <span class="dot"></span>
+                <div>
+                  <span class="b">AI</span>
+                  <span class="muted">— Google AI Studio · Gemini API</span>
+                </div>
+              </li>
+              <li>
+                <span class="dot"></span>
+                <div>
+                  <span class="b">키 보안</span>
+                  <span class="muted"
+                    >— Gemini 키는 백엔드에서만 보관 · 앱은 호출 X</span
+                  >
+                </div>
+              </li>
+            </ul>
+          </div>
         </div>
-      </div>
-      <div class="col" style="flex:.58;">
-        <p class="b" style="font-size:1.35vw; margin-bottom:.6vh;">영역별 진도</p>
-        <div class="pgrid">
-          <div class="mod"><div class="mt">아키텍처</div><div class="track"><div class="fill" style="width:90%"></div></div><div class="pct">90%</div></div>
-          <div class="mod"><div class="mt">DB / UI 설계</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">백엔드</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">프론트엔드</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">AI / ML</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">테스트</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">배포</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod"><div class="mt">발표 문서 (중간)</div><div class="track"><div class="fill" style="width:50%"></div></div><div class="pct">50%</div></div>
-          <div class="mod"><div class="mt">발표 문서 (기말)</div><div class="track"><div class="fill dim" style="width:0%"></div></div><div class="pct">0%</div></div>
-          <div class="mod total" style="grid-column:span 3;"><div class="mt">전체 진도</div><div class="track"><div class="fill" style="width:16%"></div></div><div class="pct">12주차 기준 · 약 16%</div></div>
+      </section>
+
+      <!-- 4. 현재 진행 상황 + 데모 -->
+      <section class="slide">
+        <div class="kicker"><span class="chip"></span> PROGRESS &amp; DEMO</div>
+        <h1 class="title">현재 진행 상황 + 데모</h1>
+        <div class="row" style="gap: 2vw">
+          <div class="col" style="flex: 0.42">
+            <div class="card outline shadow" style="height: 100%">
+              <p
+                style="font-size: 1.5vw; font-weight: 700; margin-bottom: 1.2vh"
+              >
+                현 단계
+                <span class="muted" style="font-size: 1.2vw"
+                  >— 코드 작성 전, 설계 마무리 중</span
+                >
+              </p>
+              <ul class="clean" style="font-size: 1.25vw">
+                <li>
+                  <span class="dot"></span>
+                  <div>
+                    <span class="b">아키텍처 설계</span>
+                    <span class="muted">거의 완료 (90%)</span>
+                  </div>
+                </li>
+                <li>
+                  <span class="dot"></span>
+                  <div>
+                    <span class="b">UI 데모 화면 4종</span>
+                    <span class="muted"
+                      >프로필 · 루틴 · 기록 · 대시보드 (목업)</span
+                    >
+                  </div>
+                </li>
+                <li>
+                  <span class="dot"></span>
+                  <div>
+                    <span class="b">실제 구현</span>
+                    <span class="muted"
+                      >백엔드 · 프론트엔드 · AI 연동 전부 0%</span
+                    >
+                  </div>
+                </li>
+                <li>
+                  <span class="dot"></span>
+                  <div>
+                    <span class="b">중간 발표 문서</span>
+                    <span class="muted">50%</span>
+                  </div>
+                </li>
+              </ul>
+              <p
+                class="primary"
+                style="font-style: italic; font-size: 1.2vw; margin-top: 1.2vh"
+              >
+                설계가 끝났으니 다음 주부터 실제 코드 작성에 진입합니다.
+              </p>
+            </div>
+          </div>
+          <div class="col" style="flex: 0.58">
+            <p class="b" style="font-size: 1.35vw; margin-bottom: 0.6vh">
+              영역별 진도
+            </p>
+            <div class="pgrid">
+              <div class="mod">
+                <div class="mt">아키텍처</div>
+                <div class="track">
+                  <div class="fill" style="width: 90%"></div>
+                </div>
+                <div class="pct">90%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">DB / UI 설계</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">백엔드</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">프론트엔드</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">AI / ML</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">테스트</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">배포</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">발표 문서 (중간)</div>
+                <div class="track">
+                  <div class="fill" style="width: 50%"></div>
+                </div>
+                <div class="pct">50%</div>
+              </div>
+              <div class="mod">
+                <div class="mt">발표 문서 (기말)</div>
+                <div class="track">
+                  <div class="fill dim" style="width: 0%"></div>
+                </div>
+                <div class="pct">0%</div>
+              </div>
+              <div class="mod total" style="grid-column: span 3">
+                <div class="mt">전체 진도</div>
+                <div class="track">
+                  <div class="fill" style="width: 16%"></div>
+                </div>
+                <div class="pct">12주차 기준 · 약 16%</div>
+              </div>
+            </div>
+            <p class="muted" style="font-size: 1.15vw; margin-top: 1.2vh">
+              데모: 설계된 화면 흐름(프로필 → 루틴 → 기록 → 통계) 목업으로 시연
+            </p>
+          </div>
         </div>
-        <p class="muted" style="font-size:1.15vw; margin-top:1.2vh;">데모: 설계된 화면 흐름(프로필 → 루틴 → 기록 → 통계) 목업으로 시연</p>
-      </div>
+      </section>
+
+      <!-- 5. 남은 일정 + 우선순위 -->
+      <section class="slide dark">
+        <div
+          class="blob"
+          style="
+            width: 26vw;
+            height: 26vw;
+            left: -8vw;
+            bottom: -10vw;
+            background: rgba(10, 126, 164, 0.25);
+          "
+        ></div>
+        <div style="position: relative; z-index: 1">
+          <div class="kicker" style="color: var(--accent)">
+            <span class="chip"></span> NEXT PLAN
+          </div>
+          <h1 class="title">남은 일정 · 우선순위</h1>
+          <div class="prow">
+            <div class="pnum">1</div>
+            <div class="pt">백엔드 스캐폴딩</div>
+            <div class="pd">
+              Node.js + Express(TS) 초기 구조 · Firebase Admin 연결
+            </div>
+          </div>
+          <div class="prow">
+            <div class="pnum">2</div>
+            <div class="pt">프론트엔드 본 개발</div>
+            <div class="pd">
+              React Native 4개 화면을 목업 → 실제 데이터 연동으로 전환
+            </div>
+          </div>
+          <div class="prow">
+            <div class="pnum">3</div>
+            <div class="pt">AI 실연결 (Gemini)</div>
+            <div class="pd">
+              백엔드 경유 호출 · 프로필 → 루틴 JSON 변환 · 키는 서버 보관
+            </div>
+          </div>
+          <div class="prow">
+            <div class="pnum">4</div>
+            <div class="pt">Firestore 데이터 모델</div>
+            <div class="pd">
+              프로필 · 루틴 · 기록 컬렉션 설계 후 저장/조회 연결
+            </div>
+          </div>
+          <div class="prow">
+            <div class="pnum">5</div>
+            <div class="pt">테스트 · 배포 · 기말 발표</div>
+            <div class="pd">기능 테스트 → 빌드 → 기말 발표 자료 준비</div>
+          </div>
+          <p
+            style="
+              margin-top: 1.4vh;
+              font-size: 1.65vw;
+              font-style: italic;
+              color: var(--accent);
+            "
+          >
+            감사합니다 — 질문/피드백 환영합니다.
+          </p>
+        </div>
+      </section>
     </div>
-  </section>
 
-  <!-- 5. 남은 일정 + 우선순위 -->
-  <section class="slide dark">
-    <div class="blob" style="width:26vw; height:26vw; left:-8vw; bottom:-10vw; background:rgba(10,126,164,.25);"></div>
-    <div style="position:relative; z-index:1;">
-      <div class="kicker" style="color:var(--accent);"><span class="chip"></span> NEXT PLAN</div>
-      <h1 class="title">남은 일정 · 우선순위</h1>
-      <div class="prow"><div class="pnum">1</div><div class="pt">백엔드 스캐폴딩</div><div class="pd">Node.js + Express(TS) 초기 구조 · Firebase Admin 연결</div></div>
-      <div class="prow"><div class="pnum">2</div><div class="pt">프론트엔드 본 개발</div><div class="pd">React Native 4개 화면을 목업 → 실제 데이터 연동으로 전환</div></div>
-      <div class="prow"><div class="pnum">3</div><div class="pt">AI 실연결 (Gemini)</div><div class="pd">백엔드 경유 호출 · 프로필 → 루틴 JSON 변환 · 키는 서버 보관</div></div>
-      <div class="prow"><div class="pnum">4</div><div class="pt">Firestore 데이터 모델</div><div class="pd">프로필 · 루틴 · 기록 컬렉션 설계 후 저장/조회 연결</div></div>
-      <div class="prow"><div class="pnum">5</div><div class="pt">테스트 · 배포 · 기말 발표</div><div class="pd">기능 테스트 → 빌드 → 기말 발표 자료 준비</div></div>
-      <p style="margin-top:1.4vh; font-size:1.65vw; font-style:italic; color:var(--accent);">감사합니다 — 질문/피드백 환영합니다.</p>
+    <div id="timerBox"></div>
+    <div id="dots"></div>
+    <div id="hud">
+      <span id="counter">1 / 5</span>
+      <button id="prev" aria-label="이전">‹</button>
+      <button id="next" aria-label="다음">›</button>
     </div>
-  </section>
 
-</div>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({
+        startOnLoad: true,
+        securityLevel: "loose",
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#0A7EA4",
+          primaryTextColor: "#fff",
+          primaryBorderColor: "#0A7EA4",
+          lineColor: "#64748B",
+          fontFamily: "Apple SD Gothic Neo, Pretendard, sans-serif",
+        },
+      });
+    </script>
+    <script>
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const counter = document.getElementById("counter");
+      const dotsWrap = document.getElementById("dots");
+      let idx = 0;
 
-<div id="timerBox"></div>
-<div id="dots"></div>
-<div id="hud">
-  <span id="counter">1 / 5</span>
-  <button id="prev" aria-label="이전">‹</button>
-  <button id="next" aria-label="다음">›</button>
-</div>
+      slides.forEach((_, i) => {
+        const d = document.createElement("span");
+        if (i === 0) d.classList.add("on");
+        d.addEventListener("click", () => go(i));
+        dotsWrap.appendChild(d);
+      });
+      const dots = Array.from(dotsWrap.children);
 
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
-  mermaid.initialize({
-    startOnLoad:true, securityLevel:"loose",
-    theme:"base",
-    themeVariables:{
-      primaryColor:"#0A7EA4", primaryTextColor:"#fff", primaryBorderColor:"#0A7EA4",
-      lineColor:"#64748B", fontFamily:"Apple SD Gothic Neo, Pretendard, sans-serif"
-    }
-  });
-</script>
-<script>
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  const counter = document.getElementById('counter');
-  const dotsWrap = document.getElementById('dots');
-  let idx = 0;
+      function go(n) {
+        idx = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, i) => s.classList.toggle("active", i === idx));
+        dots.forEach((d, i) => d.classList.toggle("on", i === idx));
+        counter.textContent = `${idx + 1} / ${slides.length}`;
+        document.body.classList.toggle(
+          "on-dark",
+          slides[idx].classList.contains("dark"),
+        );
+      }
+      function next() {
+        go(idx + 1);
+      }
+      function prev() {
+        go(idx - 1);
+      }
 
-  slides.forEach((_,i)=>{
-    const d = document.createElement('span');
-    if(i===0) d.classList.add('on');
-    d.addEventListener('click',()=>go(i));
-    dotsWrap.appendChild(d);
-  });
-  const dots = Array.from(dotsWrap.children);
+      document.getElementById("next").addEventListener("click", next);
+      document.getElementById("prev").addEventListener("click", prev);
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+          e.preventDefault();
+          next();
+        } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+          e.preventDefault();
+          prev();
+        } else if (e.key === "Home") go(0);
+        else if (e.key === "End") go(slides.length - 1);
+        else if (e.key.toLowerCase() === "f") toggleFull();
+        else if (e.key.toLowerCase() === "t") toggleTimer();
+      });
+      function toggleFull() {
+        if (!document.fullscreenElement)
+          document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      }
 
-  function go(n){
-    idx = Math.max(0, Math.min(slides.length-1, n));
-    slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
-    dots.forEach((d,i)=>d.classList.toggle('on', i===idx));
-    counter.textContent = `${idx+1} / ${slides.length}`;
-    document.body.classList.toggle('on-dark', slides[idx].classList.contains('dark'));
-  }
-  function next(){ go(idx+1); }
-  function prev(){ go(idx-1); }
+      // 선택적 2분 타이머 (T 키)
+      const timerEl = document.getElementById("timer");
+      let tHandle = null,
+        remain = 120;
+      function fmt(s) {
+        const m = Math.floor(s / 60);
+        const ss = String(s % 60).padStart(2, "0");
+        return `${m}:${ss}`;
+      }
+      function toggleTimer() {
+        if (tHandle) {
+          clearInterval(tHandle);
+          tHandle = null;
+          timerEl.style.display = "none";
+          remain = 120;
+          timerEl.classList.remove("warn");
+          return;
+        }
+        remain = 120;
+        timerEl.textContent = fmt(remain);
+        timerEl.style.display = "block";
+        tHandle = setInterval(() => {
+          remain--;
+          timerEl.textContent = fmt(Math.max(0, remain));
+          if (remain <= 30) timerEl.classList.add("warn");
+          if (remain <= 0) {
+            clearInterval(tHandle);
+            tHandle = null;
+            timerEl.textContent = "0:00 ⏰";
+          }
+        }, 1000);
+      }
 
-  document.getElementById('next').addEventListener('click', next);
-  document.getElementById('prev').addEventListener('click', prev);
-  document.addEventListener('keydown', e=>{
-    if(e.key==='ArrowRight'||e.key==='PageDown'||e.key===' ') { e.preventDefault(); next(); }
-    else if(e.key==='ArrowLeft'||e.key==='PageUp') { e.preventDefault(); prev(); }
-    else if(e.key==='Home') go(0);
-    else if(e.key==='End') go(slides.length-1);
-    else if(e.key.toLowerCase()==='f') toggleFull();
-    else if(e.key.toLowerCase()==='t') toggleTimer();
-  });
-  function toggleFull(){
-    if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
-  }
-
-  // 선택적 2분 타이머 (T 키)
-  const timerEl = document.getElementById('timer');
-  let tHandle=null, remain=120;
-  function fmt(s){ const m=Math.floor(s/60); const ss=String(s%60).padStart(2,'0'); return `${m}:${ss}`; }
-  function toggleTimer(){
-    if(tHandle){ clearInterval(tHandle); tHandle=null; timerEl.style.display='none'; remain=120; timerEl.classList.remove('warn'); return; }
-    remain=120; timerEl.textContent=fmt(remain); timerEl.style.display='block';
-    tHandle=setInterval(()=>{
-      remain--; timerEl.textContent=fmt(Math.max(0,remain));
-      if(remain<=30) timerEl.classList.add('warn');
-      if(remain<=0){ clearInterval(tHandle); tHandle=null; timerEl.textContent="0:00 ⏰"; }
-    },1000);
-  }
-
-  // 터치/클릭 좌우 이동
-  document.getElementById('deck').addEventListener('click', e=>{
-    if(e.target.closest('#hud')||e.target.closest('#dots')||e.target.closest('a')) return;
-    const x = e.clientX / window.innerWidth;
-    if(x > 0.62) next(); else if(x < 0.38) prev();
-  });
-  go(0);
-</script>
-</body>
+      // 터치/클릭 좌우 이동
+      document.getElementById("deck").addEventListener("click", (e) => {
+        if (
+          e.target.closest("#hud") ||
+          e.target.closest("#dots") ||
+          e.target.closest("a")
+        )
+          return;
+        const x = e.clientX / window.innerWidth;
+        if (x > 0.62) next();
+        else if (x < 0.38) prev();
+      });
+      go(0);
+    </script>
+  </body>
 </html>
